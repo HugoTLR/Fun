@@ -47,9 +47,9 @@ class Model:
     cv.destroyAllWindows
 
 
-if __name__ == "__main__":
-  model_name = "pkmn_casino_digit_reader.h5"
-  model = Model(32,32,model_name)
+# if __name__ == "__main__":
+#   model_name = "pkmn_casino_digit_reader.h5"
+#   model = Model(32,32,model_name)
 
-  imgs = glob.glob("./imgs/*.png")
-  model.run_test(imgs)
+#   imgs = glob.glob("./imgs/*.png")
+#   model.run_test(imgs)
