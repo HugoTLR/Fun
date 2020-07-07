@@ -3,11 +3,10 @@ import numpy as np
 import win32gui, win32ui, win32con, win32api
 import pygetwindow as gw
 
-CAP_W = 800
-CAP_H = 450
-CONV_W = 160
-CONV_H = 90
-NB_FEATURES = CONV_W * CONV_H
+S_X = 14
+S_Y = 469
+L_X = 500
+L_Y = 378
 
 def grab_screen(shape=(800,450),offset=(0,0)):
 

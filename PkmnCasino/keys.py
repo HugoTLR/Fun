@@ -9,7 +9,8 @@ class KeyboardManager:
     press(val)
     sleep(.01)
     release(val)
-    if val == 'a':sleep(1)
+    if val == 'b':sleep(1)
+    elif val == 'a':sleep(.75)
     else:sleep(.1)
 
   def move(self,val):

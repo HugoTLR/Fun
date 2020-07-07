@@ -4,6 +4,8 @@ import imutils
 from model import *
 from processing import auto_constrast
 from keys import KeyboardManager
+from screen import grab_screen
+from screen import L_X, L_Y, S_X, S_Y
 
 class GM:
   STATE = {0:'Menu',\
@@ -29,19 +31,28 @@ class GM:
     self.km = KeyboardManager()
 
 
-    self.board = [[0 for _ in range(GM.SIZE)] for _ in range(GM.SIZE)]
-    self.infos = {"rows":{},"cols":{},"cells":{}}
-
-    # self.km.run_game()
-    self.state = GM.STATE[0]
-    self.current_cell = 0
 
     # self.get_game_info()
 
 
   def start_game(self):
+
+    self.board = [[0 for _ in range(GM.SIZE)] for _ in range(GM.SIZE)]
+    self.infos = {"rows":{},"cols":{},"cells":{}}
+
+    self.state = GM.STATE[0]
+    self.current_cell = 0
+    
     self.km.run_game()
     self.state = GM.STATE[1]
+
+    self.update(grab_screen((L_X,L_Y),(S_X,S_Y)))
+    self.get_game_info()
+
+
+  def quit_game(self):
+    self.km.quit()
+    self.state = GM.STATE[0]
 
   def get_move_dir(self,p1,p2):
     y_diff = p2[0]-p1[0]
@@ -60,10 +71,13 @@ class GM:
       for _ in range(x_diff):
         moves.append('right')
     return moves
-  def update(self,frame,cells=True):
+  def update(self,frame,cell=None):
     self.frame = frame
-    if cells:
-      self.update_cells()
+    if cell != None:
+      self.update_cell(cell)
+
+  def game_over(self):
+    self.km.game_over()
 
 
   def move(self,move):
@@ -91,6 +105,8 @@ class GM:
     _,th = cv.threshold(roi_cstr,45,255,cv.THRESH_BINARY_INV)
     if not cell:
       th[20:th.shape[1],0:36] = 0 #Remove THIS FUCKING VOLTORB
+    else:
+       th = self.clear_th(th)
     th[th.shape[1]-7:th.shape[1]] = 0 #Remove Line that apperas sometimes and breaks the contours pipeline
 
     cnts = cv.findContours(th.copy(), cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE)
@@ -133,51 +149,52 @@ class GM:
     for r in range(GM.SIZE):
       for c in range(GM.SIZE):
         if self.infos['cells'][r*GM.SIZE+c]['val'] == -1:
-          if self.infos['rows'][r]["bombs"] == 0 or self.infos['cols'][c]["bombs"] == 0 or \
-              self.infos['rows'][r]["bombs"] == self.infos['rows'][r]["hidden"] or self.infos['cols'][c]["bombs"] == self.infos['cols'][c]["hidden"]:
+          if self.infos['rows'][r]["bombs"] == 0 or self.infos['cols'][c]["bombs"] == 0:
+            probList.append((r*GM.SIZE + c,0.0))
+          elif self.infos['rows'][r]["bombs"] == self.infos['rows'][r]["hidden"] or self.infos['cols'][c]["bombs"] == self.infos['cols'][c]["hidden"]:
             probList.append((r*GM.SIZE + c,1.0))
           else:
             probList.append( ( r*GM.SIZE + c , (self.infos['rows'][r]["bombs"] / self.infos['rows'][r]["hidden"])* (self.infos['cols'][c]["bombs"] / self.infos['cols'][c]["hidden"]) ))
     return probList
 
-  def update_cells(self):
-    for i in range(GM.SIZE):
-      for j in range(GM.SIZE):
-          roi = self.frame[(GM.UI_OFFSET)+i*(GM.UI_CELL_SIZE+GM.UI_SPACE):(GM.UI_OFFSET+GM.UI_CELL_SIZE)+i*(GM.UI_CELL_SIZE+GM.UI_SPACE),\
-                          (GM.UI_OFFSET)+j*(GM.UI_CELL_SIZE+GM.UI_SPACE):(GM.UI_OFFSET+GM.UI_CELL_SIZE)+j*(GM.UI_CELL_SIZE+GM.UI_SPACE)]
-          cnts,th,processed = self.get_digit(roi,cell=True)
-          th[:6,:] =0
-          th[-6:,:] =0
-          th[:,:6] =0
-          th[:,-6:] =0
-          if cnts:
-            digits = []
-            for cnt in cnts:
-              (x, y, w, h) = cv.boundingRect(cnt)
-              r = cv.resize(th[y:y+h,x:x+w],(32,32))
-              digits.append(r)
-            assert len(digits) == 1, f"update_cells(): cell must have 1 digits,but {len(digits)} found"
+  def update_cell(self,cell):
+    i,j = cell
+    cell = self.infos['cells'][i*GM.SIZE+j]
+    roi = self.frame[cell['loc']['y']:cell['loc']['y']+cell['loc']['h'], cell['loc']['x']:cell['loc']['x']+cell['loc']['w']]
+    # assert roi.shape != (GM.UI_CELL_SIZE,GM.UI_CELL_SIZE), f"UpdateCell Invalid SHAPE {roi.shape}"
+    cnts,th,processed = self.get_digit(roi,cell=True)
+    if cnts:
+      digits = []
+      for cnt in cnts:
+        (x, y, w, h) = cv.boundingRect(cnt)
+        r = cv.resize(th[y:y+h,x:x+w],(32,32))
+        digits.append(r)
+      assert len(digits) == 1, f"update_cell({cell}): cell must have 1 digits,but {len(digits)} found"
 
-            X = np.array(digits).reshape(-1,32,32,1)
-            X = tf.keras.utils.normalize(X,axis=1)
-            predictions = self.model.model.predict(X)
+      X = np.array(digits).reshape(-1,32,32,1)
+      X = tf.keras.utils.normalize(X,axis=1)
+      predictions = self.model.model.predict(X)
 
-            val = int( np.argmax(predictions[0]) )
-            print(val)
+      val = int( np.argmax(predictions[0]) )
+      # print(f"Cell[{i*GM.SIZE+j}] = {val}")
 
+      if val == 8:#We discovered voltorb (retrain model by adding voltorb icon in trainable class)
+        self.state = GM.STATE[2]
+        return
 
-            self.infos["cells"][i*GM.SIZE+j]['val'] = val
+      self.infos["cells"][i*GM.SIZE+j]['val'] = val
 
-            self.infos["cells"][i*GM.SIZE+j]['roi'] = roi
-            self.infos["cells"][i*GM.SIZE+j]['processed'] = processed
-            self.infos["cells"][i*GM.SIZE+j]['th'] = th
+      self.infos["cells"][i*GM.SIZE+j]['roi'] = roi
+      self.infos["cells"][i*GM.SIZE+j]['processed'] = processed
+      self.infos["cells"][i*GM.SIZE+j]['th'] = th
 
-            self.infos['rows'][i]['hidden'] -= 1
-            self.infos['cols'][j]['hidden'] -= 1
+      self.infos['rows'][i]['hidden'] -= 1
+      self.infos['cols'][j]['hidden'] -= 1
 
-            self.infos['rows'][i]['pts'] -= val
-            self.infos['cols'][j]['pts'] -= val
+      self.infos['rows'][i]['pts'] -= val
+      self.infos['cols'][j]['pts'] -= val
 
+  
   def get_game_info(self):
     for i in range(GM.SIZE):
       self.infos["rows"][i] = {"id":i,
@@ -203,31 +220,29 @@ class GM:
       self.infos["cols"][i]["roi"] = self.frame[self.infos["cols"][i]["loc"]['y']:self.infos["cols"][i]["loc"]['y']+self.infos["cols"][i]["loc"]['h'],\
                                                 self.infos["cols"][i]["loc"]['x']:self.infos["cols"][i]["loc"]['x']+self.infos["cols"][i]["loc"]['w']]
 
-      # print(self.infos["rows"][i]['roi'].shape,self.infos["cols"][i]['roi'].shape)
-      # cv.imshow("r",self.infos["rows"][i]['roi'])
-      # cv.imshow("c",self.infos["cols"][i]['roi'])
-      # cv.waitKey(0)
       self.set_info(i)
       self.set_info(i,mode='cols')
 
 
       for j in range(GM.SIZE):
-        roi = self.frame[(GM.UI_OFFSET)+i*(GM.UI_CELL_SIZE+GM.UI_SPACE):(GM.UI_OFFSET+GM.UI_CELL_SIZE)+i*(GM.UI_CELL_SIZE+GM.UI_SPACE),\
-                          (GM.UI_OFFSET)+j*(GM.UI_CELL_SIZE+GM.UI_SPACE):(GM.UI_OFFSET+GM.UI_CELL_SIZE)+j*(GM.UI_CELL_SIZE+GM.UI_SPACE)]
-        _,th,processed = self.get_digit(roi,cell=True)
-        th[:6,:] =0
-        th[-6:,:] =0
-        th[:,:6] =0
-        th[:,-6:] =0
         self.infos["cells"][i*GM.SIZE+j] = {"id":i*GM.SIZE+j,
                                             "val":-1,
                                             "row":i,
                                             "col":j,
-                                            "roi":roi,
-                                            "processed": processed,
-                                            "th":th}
+                                            "loc":{"x":(GM.UI_OFFSET)+j*(GM.UI_CELL_SIZE+GM.UI_SPACE),
+                                                    "y":(GM.UI_OFFSET)+i*(GM.UI_CELL_SIZE+GM.UI_SPACE),
+                                                    "w":GM.UI_CELL_SIZE,
+                                                    "h":GM.UI_CELL_SIZE},
+                                            "roi":None,
+                                            "processed": None,
+                                            "th":None}
 
-
+  def clear_th(self,th):
+    th[:6,:] =0
+    th[-6:,:] =0
+    th[:,:6] =0
+    th[:,-6:] =0
+    return th
 
   def build_image(self,mode='roi'):
     im = np.zeros(((GM.SIZE+1)*GM.UI_CELL_SIZE,(GM.SIZE+1)*GM.UI_CELL_SIZE),dtype=np.uint8)
@@ -248,9 +263,7 @@ class GM:
     return im                                                          
   
   def ui_board(self):
-  
     im = self.build_image()
     processed = self.build_image('processed')
     th = self.build_image('th')  
-
     return np.hstack([im,processed,th])
