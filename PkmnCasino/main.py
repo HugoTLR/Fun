@@ -14,10 +14,15 @@ def run(gm):
     print("NEW GAME")
     gm.start_game()
     while gm.state == 'Game':
-      probaList = sorted(gm.calc_proba(),key=lambda x: x[1])
-      print(probaList)
-      best = probaList[0]
-      if best[1] < .15: #.25 means a cell with 50% chance of bomb, if we get there just quit and rerun instead of losing points
+      # probaList = sorted(gm.calc_proba(),key=lambda x: x[1])
+      bestProb = sorted(gm.heuristics(),key=lambda x: x[1],reverse=True)
+      # for o,n in zip(probaList,bestProb):
+      #   print(f"old:{o}\tnew:{n}")
+      # break
+      # best = probaList[0]
+      best = bestProb[0]
+      # if best[1] < .15: #.25 means a cell with 50% chance of bomb, if we get there just quit and rerun instead of losing points
+      if best[1] > 0:
         target_cell = best[0]
         c_r,c_c = gm.current_cell//GM.SIZE,gm.current_cell%GM.SIZE
         t_r,t_c = target_cell//GM.SIZE,target_cell%GM.SIZE
@@ -27,6 +32,10 @@ def run(gm):
         for move in move_dir_list:
           gm.move(move)
         gm.action()
+
+        if gm.game_done():
+          gm.win()
+          break
       else:
         gm.quit_game()
         break
@@ -37,9 +46,13 @@ def run(gm):
 
     if gm.state == GM.STATE[0]:
       print(f"We leaved before loosing points")
+    elif gm.state == GM.STATE[3]:
+      print(f"We Won !")
+
     else:
       print(f"We exploded on a voltorb")
       gm.game_over()
+    
 
   # cv.destroyAllWindows()
 

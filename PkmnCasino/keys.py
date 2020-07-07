@@ -10,7 +10,7 @@ class KeyboardManager:
     sleep(.01)
     release(val)
     if val == 'b':sleep(1)
-    elif val == 'a':sleep(.75)
+    elif val == 'a':sleep(1)
     else:sleep(.1)
 
   def move(self,val):
@@ -28,7 +28,10 @@ class KeyboardManager:
 
   def quit(self):
     self.input_key('b')
-    self.input_key('a')
-    self.input_key('a')
-    self.input_key('a')
-    self.input_key('a')
+    for _ in range(4):
+      self.input_key('a')
+
+  def game_win(self):
+    for _ in range(6):
+      self.input_key('a')
+    self.input_key('right') #In case we trigger lvl up ?

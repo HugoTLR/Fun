@@ -42,7 +42,7 @@ class GM:
 
     self.state = GM.STATE[0]
     self.current_cell = 0
-    
+
     self.km.run_game()
     self.state = GM.STATE[1]
 
@@ -143,6 +143,40 @@ class GM:
     self.infos[mode][m_id]["processed"] = processed
     self.infos[mode][m_id]["th"] = th
     self.infos[mode][m_id]["roi"] = roi
+
+  def heuristics(self):
+    probList = []
+    for r in range(GM.SIZE):
+      for c in range(GM.SIZE):
+        cell = self.infos['cells'][r*GM.SIZE+c]
+        if self.infos['cells'][r*GM.SIZE+c]['val'] == -1:
+          score = (self.score(r,c,2)+self.score(r,c,3))/self.safe(r,c)
+          probList.append((cell['id'],score))
+    return probList
+
+  def safe(self,r,c):
+    p1 = self.infos['rows'][r]['bombs']/self.infos['rows'][r]['hidden']
+    p2 = self.infos['cols'][c]['bombs']/self.infos['cols'][c]['hidden']
+    return  1-(p1*p2)
+  def win(self):
+    self.km.game_win()
+    self.state = GM.STATE[3]
+
+  def game_done(self):
+    for r in self.infos['rows'].values():
+      if r["pts"] + r["bombs"] != r["hidden"]:
+        return False
+    return True  
+  def score(self,r,c,obj=2):
+    try:
+      p1 = self.infos['rows'][r]['pts']/(self.infos['rows'][r]['hidden']-self.infos['rows'][r]['bombs'])
+    except ZeroDivisionError:
+      p1 = 0
+    try:
+      p2 = self.infos['cols'][c]['pts']/(self.infos['cols'][c]['hidden']-self.infos['cols'][c]['bombs'])
+    except ZeroDivisionError:
+      p2 = 0
+    return p1*p2 - (obj-1)
 
   def calc_proba(self):
     probList = []
