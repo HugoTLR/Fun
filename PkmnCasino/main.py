@@ -11,7 +11,7 @@ def run(gm):
   screen.setWindow()
 
   while True:
-    print("NEW GAME")
+    
     gm.start_game()
     while gm.state == 'Game':
       # probaList = sorted(gm.calc_proba(),key=lambda x: x[1])
@@ -21,6 +21,7 @@ def run(gm):
       # break
       # best = probaList[0]
       best = bestProb[0]
+      print(best)
       # if best[1] < .15: #.25 means a cell with 50% chance of bomb, if we get there just quit and rerun instead of losing points
       if best[1] > 0:
         target_cell = best[0]
@@ -64,8 +65,3 @@ if __name__ == "__main__":
 
   gm = GM(model)
   run(gm)
-
-
-
-
-  # cv.destroyAllWindows()

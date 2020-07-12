@@ -16,7 +16,7 @@ def grab_screen(shape=(800,450),offset=(0,0)):
     width = win32api.GetSystemMetrics(win32con.SM_CXVIRTUALSCREEN)
     height = win32api.GetSystemMetrics(win32con.SM_CYVIRTUALSCREEN)
     left = win32api.GetSystemMetrics(win32con.SM_XVIRTUALSCREEN)+offset[0]
-    top = win32api.GetSystemMetrics(win32con.SM_YVIRTUALSCREEN)++offset[1]
+    top = win32api.GetSystemMetrics(win32con.SM_YVIRTUALSCREEN)+offset[1]
     if shape:
         width = shape[0]
         height = shape[1]
@@ -43,11 +43,12 @@ def grab_screen(shape=(800,450),offset=(0,0)):
 
     return cv2.cvtColor(img, cv2.COLOR_BGRA2GRAY)
 
-def setWindow(name="DeSmuME 0.9.11 x64"):
+def setWindow(name="DeSmuME 0.9.11 x64",x=-1920,y=0):
     win = gw.getWindowsWithTitle(name)
     if len(win) == 0:
         print("NO WINDOW ! EXITING")
         return
     tm = win[0]
     tm.activate()
-    tm.moveTo(-1920,0)
+
+    tm.moveTo(x,y)

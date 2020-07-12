@@ -25,6 +25,11 @@ class GM:
   UI_SPACE        = 8
   UI_OFFSET       = 6
 
+  PLAY_BUTTON = cv.cvtColor(cv.imread('play_button.png'),cv.COLOR_BGR2GRAY)
+  PLAYY_HEIGHT,PLAY_WIDTH = PLAY_BUTTON.shape
+
+
+
 
   def __init__(self,model):
     self.model = model
@@ -51,8 +56,17 @@ class GM:
 
 
   def quit_game(self):
-    self.km.quit()
     self.state = GM.STATE[0]
+    self.km.input_key('b')
+
+    val_max = 0
+    while val_max < 0.9:
+      self.km.input_key('a')
+      self.update(grab_screen((L_X,L_Y),(S_X,S_Y)))
+      match = cv.matchTemplate(self.frame,GM.PLAY_BUTTON,cv.TM_CCOEFF_NORMED)
+      (_, val_max, _, loc_max) = cv.minMaxLoc(match)
+      print("Not the menu")
+    print("The menu ?")
 
   def get_move_dir(self,p1,p2):
     y_diff = p2[0]-p1[0]
@@ -77,7 +91,16 @@ class GM:
       self.update_cell(cell)
 
   def game_over(self):
-    self.km.game_over()
+    print("GameOver")
+    val_max = 0
+    while val_max < 0.9:
+      self.km.input_key('a')
+      self.update(grab_screen((L_X,L_Y),(S_X,S_Y)))
+      match = cv.matchTemplate(self.frame,GM.PLAY_BUTTON,cv.TM_CCOEFF_NORMED)
+      (_, val_max, _, loc_max) = cv.minMaxLoc(match)
+      print("Not the menu")
+    print("The menu ?")
+
 
 
   def move(self,move):
@@ -159,8 +182,19 @@ class GM:
     p2 = self.infos['cols'][c]['bombs']/self.infos['cols'][c]['hidden']
     return  1-(p1*p2)
   def win(self):
-    self.km.game_win()
     self.state = GM.STATE[3]
+
+    val_max = 0
+    while val_max < 0.9:
+      self.km.input_key('a')
+      self.update(grab_screen((L_X,L_Y),(S_X,S_Y)))
+      match = cv.matchTemplate(self.frame,GM.PLAY_BUTTON,cv.TM_CCOEFF_NORMED)
+      (_, val_max, _, loc_max) = cv.minMaxLoc(match)
+
+
+
+
+
 
   def game_done(self):
     for r in self.infos['rows'].values():
@@ -212,7 +246,7 @@ class GM:
       val = int( np.argmax(predictions[0]) )
       # print(f"Cell[{i*GM.SIZE+j}] = {val}")
 
-      if val == 8:#We discovered voltorb (retrain model by adding voltorb icon in trainable class)
+      if val == 8:#We discovered voltorb (retrain model by adding voltorb icon in trainable class, or use template matching n_n)
         self.state = GM.STATE[2]
         return
 
